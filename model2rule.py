@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 fTraffic = "traffic"
-fModel = "model"
+fModel = "model2"
 fProto = "proto"
 fRuleFormat = "ruleformat"
 
@@ -27,16 +27,18 @@ CLIENT_IP = 'any'
 CLIENT_PORT = 'any'
 
 class FSM():
-    
-    
+    """This class represents the FSM read from model. It contains the states, initial state and transition matrix."""
     def __init__(self, states, transMatrix, initial):
         self.states = states
         self.transMatrix = transMatrix
         self.initial = initial
+        self.proto = {}
+        #check if initial state is in states
         if self.initial not in self.states:
             print("WARNING: Initial state not found.")
         else:
             self.init_id = self.states.index(initial)
+        #check if matrix has correct dimensions
         if len(self.transMatrix) != len(self.states):
             print("WARNING: Invalid matrix size (# rows).")
         for i, row in enumerate(self.transMatrix):
@@ -71,12 +73,29 @@ Initial state: {self.initial}
             
         return f'flowbits:{s_bits};flowbits:{t_bits};'
         
-    def generateContent(self, sid, tid): # maybe different args?
-        # TODO @ Cindy
-        return ''
+    def readContent(self):
+        """This function reads the protocol specifications and fill self.proto"""
+        #self.proto: key - transition    value: content
+        while True:
+            line = fProto.readline()
+            if (len(line) == 0):
+                break
+            line = line.rstrip('\n')
+            contents = line.split(' - ')
+            if (len(contents) < 2):
+                print("WARNING: Protocol specification in the wrong format.")
+                break
+            self.proto[contents[0]] = contents[1]
+
+    def generateContent(self, sid, tid): 
+        content = ''
+        for entry in self.proto:
+            if entry in self.transMatrix[sid][tid]:
+                content += self.proto[entry]
+        return content
+
      
     def generateRule(self, sid, tid):
-        
         content = self.generateContent(sid, tid)
         flowbits = self.generateFlowbitsOptions(sid, tid)
         
@@ -84,13 +103,14 @@ Initial state: {self.initial}
         return f'allow tcp {SERVER_IP} {SERVER_PORT} -> {CLIENT_IP} {CLIENT_PORT} (flow:established;{content}{flowbits}tag:session,exclusive;)' 
     
     def generateAllRules(self):
+        self.readContent()
         for sid, row in enumerate(self.transMatrix):
             for tid, v in enumerate(row):
                 if v: print(self.generateRule(sid, tid))
         
 
 def readModel(fModel):
-
+    """This function reads the model file and generate a FSM class out of it.""" 
     states = []
     transMatrix = []
 

@@ -1,0 +1,9 @@
+ReadRegister - content:"|08 00 04|"; offset:7; depth:3;
+R3 - content:"|03 00|"; offset:5; depth:2;
+ResponseRegister - content:"|08 00 04|"; offset:7; depth:3;
+ReadCoils - content:"|00 00 04|"; offset:7; depth:3;
+CoilID - content:"|01 00|"; offset:5; depth:2;
+ResponseCoils - content:"|00 00 04|"; offset:7; depth:3;
+ReadDiscreteInputs - content:"|04 00 04|"; offset:7; depth:3;
+InputID - content:"|02 00|"; offset:5; depth:2;
+ResponseDiscreteInputs - content:"|04 00 04|"; offset:7; depth:3;
