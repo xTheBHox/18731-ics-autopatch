@@ -21,9 +21,9 @@ traffic = fTraffic.readline()
 
 
 GROUPNAME = "modbus"
-SERVER_IP = 'any'
+SERVER_IP = '192.168.1.101; 192.168.1.102; 192.168.1.103; 192.168.1.104; 192.168.1.105; 192.168.1.106'
 SERVER_PORT = '502'
-CLIENT_IP = 'any'
+CLIENT_IP = '192.168.1.100'
 CLIENT_PORT = 'any'
 
 class FSM():
@@ -106,7 +106,8 @@ Initial state: {self.initial}
         self.readContent()
         for sid, row in enumerate(self.transMatrix):
             for tid, v in enumerate(row):
-                if v: print(self.generateRule(sid, tid))
+                if v: 
+                    print(self.generateRule(sid, tid))
         
 
 def readModel(fModel):
