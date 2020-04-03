@@ -33,6 +33,10 @@ class FSM():
         self.transMatrix = transMatrix
         self.initial = initial
         self.proto = {}
+        
+        # need for snort rule IDs
+        self.rule_id = 1000000
+        
         #check if initial state is in states
         if self.initial not in self.states:
             print("WARNING: Initial state not found.")
@@ -98,15 +102,18 @@ Initial state: {self.initial}
     def generateRule(self, sid, tid):
         content = self.generateContent(sid, tid)
         flowbits = self.generateFlowbitsOptions(sid, tid)
+        rule_id = f'sid:{self.rule_id};'
+        
+        self.rule_id += 1
         
         #Assume transitions that contains read is query from client to server, transition that contains
         #response is from server to client
         if "Read" in self.transMatrix[sid][tid]:
             read = 1
-            return f'allow tcp {CLIENT_IP} {CLIENT_PORT} -> {SERVER_IP} {SERVER_PORT} (flow:established;{content}{flowbits}tag:session,exclusive;)' 
+            return f'allow tcp {CLIENT_IP} {CLIENT_PORT} -> {SERVER_IP} {SERVER_PORT} (flow:established;{content}{flowbits}tag:session,exclusive;{rule_id})' 
         elif "Response" in self.transMatrix[sid][tid]:
             read = 0
-            return f'allow tcp {SERVER_IP} {SERVER_PORT} -> {CLIENT_IP} {CLIENT_PORT} (flow:established;{content}{flowbits}tag:session,exclusive;)' 
+            return f'allow tcp {SERVER_IP} {SERVER_PORT} -> {CLIENT_IP} {CLIENT_PORT} (flow:established;{content}{flowbits}tag:session,exclusive;{rule_id})' 
         else:
             print("WARNING: Protocal specification in wrong format, cannot decide direction of flow.")
             return ''
