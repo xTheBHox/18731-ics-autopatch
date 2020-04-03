@@ -99,8 +99,17 @@ Initial state: {self.initial}
         content = self.generateContent(sid, tid)
         flowbits = self.generateFlowbitsOptions(sid, tid)
         
-        # need to figure out arrow directions
-        return f'allow tcp {SERVER_IP} {SERVER_PORT} -> {CLIENT_IP} {CLIENT_PORT} (flow:established;{content}{flowbits}tag:session,exclusive;)' 
+        #Assume transitions that contains read is query from client to server, transition that contains
+        #response is from server to client
+        if "Read" in self.transMatrix[sid][tid]:
+            read = 1
+            return f'allow tcp {CLIENT_IP} {CLIENT_PORT} -> {SERVER_IP} {SERVER_PORT} (flow:established;{content}{flowbits}tag:session,exclusive;)' 
+        elif "Response" in self.transMatrix[sid][tid]:
+            read = 0
+            return f'allow tcp {SERVER_IP} {SERVER_PORT} -> {CLIENT_IP} {CLIENT_PORT} (flow:established;{content}{flowbits}tag:session,exclusive;)' 
+        else:
+            print("WARNING: Protocal specification in wrong format, cannot decide direction of flow.")
+            return ''
     
     def generateAllRules(self):
         self.readContent()
