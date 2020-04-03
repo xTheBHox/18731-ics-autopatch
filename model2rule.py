@@ -21,10 +21,10 @@ traffic = fTraffic.readline()
 
 
 GROUPNAME = "modbus"
-SERVER_IP = '[192.168.1.101,192.168.1.102,192.168.1.103,192.168.1.104,192.168.1.105,192.168.1.106]'
-SERVER_PORT = '502'
-CLIENT_IP = '192.168.1.100'
-CLIENT_PORT = 'any'
+SERVER_IP = ['192.168.1.101','192.168.1.102','192.168.1.103','192.168.1.104','192.168.1.105','192.168.1.106']
+SERVER_PORT = ['502', '502', '502', '502', '502', '502']
+CLIENT_IP = ['192.168.1.100']
+CLIENT_PORT = ['any']
 
 class FSM():
     """This class represents the FSM read from model. It contains the states, initial state and transition matrix."""
@@ -48,6 +48,8 @@ class FSM():
         for i, row in enumerate(self.transMatrix):
             if len(row) != len(self.states):
                 print(f"WARNING: Invalid matrix size (# cols in row {i}).")
+        
+        self.readContent()
         
     def __repr__(self):
     
@@ -74,7 +76,7 @@ Initial state: {self.initial}
             t_bits = f'unset,all,{GROUPNAME}'
         else:
             t_bits = f'setx,{self.states[tid]},{GROUPNAME}'
-            
+        
         return f'flowbits:{s_bits};flowbits:{t_bits};'
         
     def readContent(self):
@@ -98,8 +100,13 @@ Initial state: {self.initial}
                 content += self.proto[entry]
         return content
 
-     
-    def generateRule(self, sid, tid):
+    def generateHeader(self, server, client, read):
+        if read:
+            return f'allow tcp {client} -> {server}'
+        else:
+            return f'allow tcp {server} -> {client}'
+
+    def generateRule(self, server, client, sid, tid):
         content = self.generateContent(sid, tid)
         flowbits = self.generateFlowbitsOptions(sid, tid)
         rule_id = f'sid:{self.rule_id};'
@@ -109,21 +116,25 @@ Initial state: {self.initial}
         #Assume transitions that contains read is query from client to server, transition that contains
         #response is from server to client
         if "Read" in self.transMatrix[sid][tid]:
-            read = 1
-            return f'allow tcp {CLIENT_IP} {CLIENT_PORT} -> {SERVER_IP} {SERVER_PORT} (flow:established;{content}{flowbits}tag:session,exclusive;{rule_id})' 
+            header = self.generateHeader(server, client, 1)
+            return f'{header} (flow:established;{content}{flowbits}tag:session,exclusive;{rule_id})' 
         elif "Response" in self.transMatrix[sid][tid]:
-            read = 0
-            return f'allow tcp {SERVER_IP} {SERVER_PORT} -> {CLIENT_IP} {CLIENT_PORT} (flow:established;{content}{flowbits}tag:session,exclusive;{rule_id})' 
+            header = self.generateHeader(server, client, 0)
+            return f'{header} (flow:established;{content}{flowbits}tag:session,exclusive;{rule_id})' 
         else:
             print("WARNING: Protocal specification in wrong format, cannot decide direction of flow.")
             return ''
     
     def generateAllRules(self):
-        self.readContent()
+        
         for sid, row in enumerate(self.transMatrix):
             for tid, v in enumerate(row):
-                if v: 
-                    print(self.generateRule(sid, tid))
+                if v:
+                    for i in range(len(SERVER_IP)):
+                        server = f'{SERVER_IP[i]} {SERVER_PORT[i]}'
+                        for j in range(len(CLIENT_IP)):
+                            client = f'{CLIENT_IP[j]} {CLIENT_PORT[j]}'
+                            print(self.generateRule(server, client, sid, tid))
         
 
 def readModel(fModel):
