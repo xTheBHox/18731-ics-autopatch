@@ -64,18 +64,19 @@ Transitions:
 Initial state: {self.initial}
 '''
     
-    def generateFlowbitsOptions(self, sid, tid):
+    def generateFlowbitsOptions(self, sid, tid, server_index, client_index):
         # Generate the flowbits rule to check if in state S
+        flow_mod = f'{server_index}-{client_index}'
         if sid == self.init_id:
-            s_bits = f'isnotset,any,{GROUPNAME}'
+            s_bits = f'isnotset,any,{GROUPNAME}_{flow_mod}'
         else:
-            s_bits = f'isset,{self.states[sid]},{GROUPNAME}'
+            s_bits = f'isset,{self.states[sid]}_{flow_mod},{GROUPNAME}_{flow_mod}'
         
         # Generate the flowbits rule to set state T
         if tid == self.init_id:
-            t_bits = f'unset,all,{GROUPNAME}'
+            t_bits = f'unset,all,{GROUPNAME}_{flow_mod}'
         else:
-            t_bits = f'setx,{self.states[tid]},{GROUPNAME}'
+            t_bits = f'setx,{self.states[tid]}_{flow_mod},{GROUPNAME}_{flow_mod}'
         
         return f'flowbits:{s_bits};flowbits:{t_bits};'
         
@@ -100,15 +101,17 @@ Initial state: {self.initial}
                 content += self.proto[entry]
         return content
 
-    def generateHeader(self, server, client, read):
+    def generateHeader(self, server_index, client_index, read):
+        server = f'{SERVER_IP[server_index]} {SERVER_PORT[server_index]}'
+        client = f'{CLIENT_IP[client_index]} {CLIENT_PORT[client_index]}'
         if read:
             return f'allow tcp {client} -> {server}'
         else:
             return f'allow tcp {server} -> {client}'
 
-    def generateRule(self, server, client, sid, tid):
+    def generateRule(self, server_index, client_index, sid, tid):
         content = self.generateContent(sid, tid)
-        flowbits = self.generateFlowbitsOptions(sid, tid)
+        flowbits = self.generateFlowbitsOptions(sid, tid, server_index, client_index)
         rule_id = f'sid:{self.rule_id};'
         
         self.rule_id += 1
@@ -116,10 +119,10 @@ Initial state: {self.initial}
         #Assume transitions that contains read is query from client to server, transition that contains
         #response is from server to client
         if "Read" in self.transMatrix[sid][tid]:
-            header = self.generateHeader(server, client, 1)
+            header = self.generateHeader(server_index, client_index, 1)
             return f'{header} (flow:established;{content}{flowbits}tag:session,exclusive;{rule_id})' 
         elif "Response" in self.transMatrix[sid][tid]:
-            header = self.generateHeader(server, client, 0)
+            header = self.generateHeader(server_index, client_index, 0)
             return f'{header} (flow:established;{content}{flowbits}tag:session,exclusive;{rule_id})' 
         else:
             print("WARNING: Protocal specification in wrong format, cannot decide direction of flow.")
@@ -131,10 +134,8 @@ Initial state: {self.initial}
             for tid, v in enumerate(row):
                 if v:
                     for i in range(len(SERVER_IP)):
-                        server = f'{SERVER_IP[i]} {SERVER_PORT[i]}'
                         for j in range(len(CLIENT_IP)):
-                            client = f'{CLIENT_IP[j]} {CLIENT_PORT[j]}'
-                            print(self.generateRule(server, client, sid, tid))
+                            print(self.generateRule(i, j, sid, tid))
         
 
 def readModel(fModel):
