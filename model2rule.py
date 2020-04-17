@@ -128,14 +128,35 @@ Initial state: {self.initial}
             print("WARNING: Protocal specification in wrong format, cannot decide direction of flow.")
             return ''
     
+    def allowSYN(self, client_index, server_index):
+        #allow client to send SYN packets to server
+        header = self.generateHeader(server_index, client_index, 1)
+        return f'{header} (flags:S;)' 
+
+    def allowFIN(self, client_index, server_index):
+        #allow client to send FIN to client
+        header = self.generateHeader(server_index, client_index, 1)
+        return f'{header} (flags:AF;)' 
+
+    def allowSYNACK(self, client_index, server_index):
+        #allow server to send SYN ACK to client
+        header = self.generateHeader(server_index, client_index, 0)
+        return f'{header} (flags:SA;)'    
+    
     def generateAllRules(self):
-        
+        #generate rules based on FSM
         for sid, row in enumerate(self.transMatrix):
             for tid, v in enumerate(row):
                 if v:
                     for i in range(len(SERVER_IP)):
                         for j in range(len(CLIENT_IP)):
                             print(self.generateRule(i, j, sid, tid))
+        #allow client to send SYN to server to enable connection
+        for i in range(len(CLIENT_IP)):
+            for j in range(len(SERVER_IP)):
+                print(self.allowSYN(i, j))
+                print(self.allowFIN(i, j))
+                print(self.allowSYNACK(i, j))
         
 
 def readModel(fModel):
