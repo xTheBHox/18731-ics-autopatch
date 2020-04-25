@@ -1,8 +1,8 @@
 import socket
 import random
+import sys
 
-CLIENT_IP = '192.168.1.100'
-SERVER_IP = '192.168.1.104'
+SERVER_IP = sys.argv[1]
 SERVER_PORT = 502
 
 class MB():
@@ -15,7 +15,10 @@ class MB():
     FNCODE_READ_INPUT_REGISTERS = 4
     FNCODE_READ_MULTIPLE_HOLDING_REGISTERS = 3
     FNCODE_WRITE_SINGLE_HOLDING_REGISTER = 6
-    FNCODE_WRITE_MULTIPLE_HOLDING_REGISTERS = 6
+    FNCODE_WRITE_MULTIPLE_HOLDING_REGISTERS = 16
+    
+    WRITE_SINGLE_COIL_OFF = 0
+    WRITE_SINGLE_COIL_ON = 0xFF00
 
 class MBPkt():
 
@@ -36,20 +39,23 @@ class MBPkt():
         b = b + self.data
         i = 0 
         while i < len(b):
-            i += sock.send(b[i:], len(b) - i)
+            i += sock.send(b[i:])
         
         # Wait for the reply
         recv_buf = bytearray()
         while True:
-            msg = s.recv(256)
-            print(''.join('{:02x}'.format(x) for x in msg))
+            msg = s.recv(6 - len(recv_buf))
             if len(msg) == 0: break
             recv_buf.extend(msg)
-            if len(recv_buf) < 6: continue
-            l = int.from_bytes(recv_buf[4:6], byteorder='big', signed=False) + 6
-            print("%d bytes needed," % l, "%d bytes buffered" % len(recv_buf))
-            break
-        
+            if len(recv_buf) == 6: break
+        l = int.from_bytes(recv_buf[4:6], byteorder='big', signed=False) + 6
+        while True:
+            msg = s.recv(l - len(recv_buf))
+            if len(msg) == 0: break
+            recv_buf.extend(msg)
+            #print("%d bytes needed," % l, "%d bytes buffered" % len(recv_buf))
+            if len(recv_buf) == l: break            
+            
     @staticmethod
     def ReadCoils(start, count):
         b = bytearray(4)
@@ -70,16 +76,82 @@ class MBPkt():
         b[0:2] = start.to_bytes(2, byteorder='big', signed=False)
         b[2:4] = count.to_bytes(2, byteorder='big', signed=False)
         return MBPkt(MB.FNCODE_READ_MULTIPLE_HOLDING_REGISTERS, b)
+        
+    @staticmethod
+    def ReadInputs(start, count):
+        b = bytearray(4)
+        b[0:2] = start.to_bytes(2, byteorder='big', signed=False)
+        b[2:4] = count.to_bytes(2, byteorder='big', signed=False)
+        return MBPkt(MB.FNCODE_READ_INPUT_REGISTERS, b)
+        
+    @staticmethod
+    def WriteCoilSingle(addr, on):
+        b = bytearray(4)
+        b[0:2] = addr.to_bytes(2, byteorder='big', signed=False)
+        if on:
+            b[2:4] = MB.WRITE_SINGLE_COIL_ON.to_bytes(2, byteorder='big', signed=False)
+        else:
+            b[2:4] = MB.WRITE_SINGLE_COIL_ON.to_bytes(2, byteorder='big', signed=False)
+        return MBPkt(MB.FNCODE_WRITE_SINGLE_COIL, b)
+        
+    @staticmethod
+    def WriteCoilMultiple(start, values):
+        count = len(values)
+        size = ((count - 1) // 8) + 1
+        b = bytearray(5 + size)
+        b[0:2] = start.to_bytes(2, byteorder='big', signed=False)
+        b[2:4] = count.to_bytes(2, byteorder='big', signed=False)
+        b[4] = count
+        for i in range(count):
+            if values[i]:
+                byte_index = 5 + i//8
+                bit_index = i % 8 
+                b[byte_index] |= 1 << bit_index
+        return MBPkt(MB.FNCODE_WRITE_MULTIPLE_COILS, b)
+        
+    @staticmethod
+    def WriteHoldingSingle(addr, val):
+        b = bytearray(4)
+        b[0:2] = addr.to_bytes(2, byteorder='big', signed=False)
+        b[2:4] = val.to_bytes(2, byteorder='big', signed=False)
+        return MBPkt(MB.FNCODE_WRITE_SINGLE_HOLDING_REGISTER, b)
+        
+    @staticmethod
+    def WriteHoldingMultiple(start, values):
+        count = len(values)
+        b = bytearray(5 + count*2)
+        b[0:2] = start.to_bytes(2, byteorder='big', signed=False)
+        b[2:4] = count.to_bytes(2, byteorder='big', signed=False)
+        b[4] = count * 2
+        for i in range(count):
+            b[i*2+5:i*2+7] = values[i].to_bytes(2, byteorder='big', signed=False)
+        return MBPkt(MB.FNCODE_WRITE_MULTIPLE_HOLDING_REGISTERS, b)
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+print("Connecting to %s..." % SERVER_IP)
 s.connect((SERVER_IP, SERVER_PORT))
 
+# EDIT BELOW!
 # This is the send loop
+
 for i in range(1, 10):
-    print("Sending ReadCoils...")
+    print("Sending Read Coils...")
     P = MBPkt.ReadCoils(0, i).send(s)
-    print("Sending ReadDiscreteInputs...")
+    print("Sending Read Discrete Inputs...")
     P = MBPkt.ReadDiscreteInputs(0, i).send(s)
-    print("Sending ReadHoldingMultiple...")
+    print("Sending Read Multiple Holding Registers...")
     P = MBPkt.ReadHoldingMultiple(0, i).send(s)
+    print("Sending Read Input Registers...")
+    P = MBPkt.ReadInputs(0, i).send(s)
+    print("Sending Write Single Coil...")
+    P = MBPkt.WriteCoilSingle(i, True).send(s)
+    print("Sending Write Multiple Coils...")
+    P = MBPkt.WriteCoilMultiple(i, [j%2==0 for j in range(i)]).send(s)
+    print("Sending Write Single Holding Register...")
+    P = MBPkt.WriteHoldingSingle(i, i).send(s)
+    print("Sending Write Multiple Holding Registers...")
+    P = MBPkt.WriteHoldingMultiple(i, list(range(i))).send(s)
+    
+    
+s.shutdown(socket.SHUT_RDWR)
 s.close()

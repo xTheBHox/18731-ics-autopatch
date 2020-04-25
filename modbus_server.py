@@ -2,8 +2,6 @@ import socket
 import random
 import threading
 
-CLIENT_IP = '192.168.1.100'
-SERVER_IP = '192.168.1.104'
 SERVER_PORT = 502
 
 class MB():
@@ -16,7 +14,7 @@ class MB():
     FNCODE_READ_INPUT_REGISTERS = 4
     FNCODE_READ_MULTIPLE_HOLDING_REGISTERS = 3
     FNCODE_WRITE_SINGLE_HOLDING_REGISTER = 6
-    FNCODE_WRITE_MULTIPLE_HOLDING_REGISTERS = 6
+    FNCODE_WRITE_MULTIPLE_HOLDING_REGISTERS = 16
 
 class MBReply():
     
@@ -27,19 +25,27 @@ class MBReply():
         self.tn = b[0:2]
         self.fn = b[7]
         if self.fn == MB.FNCODE_READ_COILS or self.fn == MB.FNCODE_READ_DISCRETE_INPUTS:
-            bits = int.from_bytes(b[8:10], byteorder='big', signed=False)
+            bits = int.from_bytes(b[10:12], byteorder='big', signed=False)
             size = ((bits - 1) // 8) + 1
             self.data = bytearray(size + 1)
             self.data[0] = size
-            
             # TODO: maybe randomize the actual reply values
             
-        elif self.fn == MB.FNCODE_READ_MULTIPLE_HOLDING_REGISTERS:
+        elif self.fn == MB.FNCODE_READ_MULTIPLE_HOLDING_REGISTERS or self.fn == MB.FNCODE_READ_INPUT_REGISTERS:
             reg_count = int.from_bytes(b[10:12], byteorder='big', signed=False)
             self.data = bytearray(2 * reg_count + 1)
             self.data[0] = 2 * reg_count
             for i in range(reg_count):
                 self.data[i*2+1:i*2+3] = random.randint(1, 0xffff).to_bytes(2, byteorder='big', signed=False)
+                
+        elif self.fn == MB.FNCODE_WRITE_SINGLE_COIL or self.fn == MB.FNCODE_WRITE_SINGLE_HOLDING_REGISTER:
+            self.data = b[8:12]
+            
+        elif self.fn == MB.FNCODE_WRITE_MULTIPLE_COILS or self.fn == MB.FNCODE_WRITE_MULTIPLE_HOLDING_REGISTERS:
+            self.data = b[8:12]
+            
+        else:
+            print("Unsupported function: %d" % self.fn)
         
     def send(self, sock):
         b = bytearray(8)
@@ -49,11 +55,11 @@ class MBReply():
         b[7] = self.fn
         
         b = b + self.data
-        print("Reply length: %d" % len(b))
+        #print("Reply length: %d" % len(b))
         i = 0
         while i < len(b):
-            i += sock.send(b[i:], len(b) - i)
-            print("Sent %d" % i)
+            i += sock.send(b[i:])
+            #print("Sent %d" % i)
     
 def thread_fn(sock):
     buf = bytearray()
@@ -63,9 +69,9 @@ def thread_fn(sock):
         buf.extend(msg)
         if len(buf) < 6: continue
         l = int.from_bytes(buf[4:6], byteorder='big', signed=False) + 6
-        print("%d bytes needed," % l, "%d bytes buffered" % len(buf))
+        #print("%d bytes needed," % l, "%d bytes buffered" % len(buf))
         if len(buf) < l: continue
-        print("Replying")
+        #print("Replying")
         P = MBReply(buf[:l])
         P.send(sock)
         buf = buf[l:]
@@ -92,4 +98,5 @@ while True:
         threads = list(filter(lambda t: t.is_alive(), threads))
         
 print("Closing server.")
+s.shutdown(socket.SHUT_RDWR)
 s.close()
