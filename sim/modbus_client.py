@@ -153,13 +153,13 @@ class MBPkt():
 # EDIT BELOW!
 # This is the send loop
 
-for i in range(1, 3):
+for i in range(1, 4):
     print("Sending Read Coils...")
     P = MBPkt.ReadCoils(0, 4).send()
     print("Sending Read Discrete Inputs...")
     P = MBPkt.ReadDiscreteInputs(0, i).send()
     print("Sending Read Multiple Holding Registers...")
-    P = MBPkt.ReadHoldingMultiple(0, i).send()
+    P = MBPkt.ReadHoldingMultiple(i, 1).send()
     print("Sending Read Input Registers...")
     P = MBPkt.ReadInputs(0, i).send()
     # print("Sending Write Single Coil...")

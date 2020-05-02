@@ -20,6 +20,11 @@ CLIENT_IP = '192.168.1.100'
 CLIENT_PORT = 'any'
 
 class FSM():
+
+    CLIENT_TO_SERVER = -1
+    SERVER_TO_CLIENT = 1
+    BIDIRECTIONAL = 0
+    
     """This class represents the FSM read from model. It contains the states, initial state and transition matrix."""
     def __init__(self, states, transMatrix, initial):
         self.states = states
@@ -93,13 +98,17 @@ Initial state: {self.initial}
                 content += self.proto[entry]
         return content
 
-    def generateHeader(self, read):
+    def generateHeader(self, action, direction):
         server = f'{SERVER_IP} {SERVER_PORT}'
         client = f'{CLIENT_IP} {CLIENT_PORT}'
-        if read:
-            return f'alert tcp {client} -> {server}'
+        if direction == FSM.BIDIRECTIONAL:
+            return f'{action} tcp {client} <> {server}'
+        elif direction == FSM.CLIENT_TO_SERVER:
+            return f'{action} tcp {client} -> {server}'
+        elif direction == FSM.SERVER_TO_CLIENT:
+            return f'{action} tcp {server} -> {client}'
         else:
-            return f'alert tcp {server} -> {client}'
+            raise ValueError("ERROR: Invalid direction!")
 
     def generateRule(self, sid, tid):
         content = self.generateContent(sid, tid)
@@ -111,35 +120,48 @@ Initial state: {self.initial}
         # Assume transitions that contains read is query from client to server, transition that contains
         # response is from server to client
         if "Read" in self.transMatrix[sid][tid]:
-            header = self.generateHeader(True)
-            return f'{header} (flow:established; {content} {flowbits} tag:session,exclusive; {rule_id})' 
+            header = self.generateHeader('pass', FSM.CLIENT_TO_SERVER)
+            return f'{header} (flow:established; {content} {flowbits} {rule_id})' 
         elif "Response" in self.transMatrix[sid][tid]:
-            header = self.generateHeader(False)
-            return f'{header} (flow:established; {content} {flowbits} tag:session,exclusive; {rule_id})' 
+            header = self.generateHeader('pass', FSM.SERVER_TO_CLIENT)
+            return f'{header} (flow:established; {content} {flowbits} {rule_id})' 
         else:
             print("WARNING: Protocal specification in wrong format, cannot decide direction of flow.")
             return ''
     
     def allowSYN(self):
         #allow client to send SYN packets to server
-        header = self.generateHeader(True)
+        header = self.generateHeader('pass', FSM.CLIENT_TO_SERVER)
         rule_id = f'sid:{self.rule_id};'
         self.rule_id += 1
-        return f'{header} (flags:S+; {rule_id})' 
+        return f'{header} (flags:S; {rule_id})'
+        
+    def allowSYNACK(self):
+        #allow client to send SYN packets to server
+        header = self.generateHeader('pass', FSM.SERVER_TO_CLIENT)
+        rule_id = f'sid:{self.rule_id};'
+        self.rule_id += 1
+        return f'{header} (flags:SA; {rule_id})'
 
     def allowFIN(self):
         #allow client to send FIN to client
-        header = self.generateHeader(True)
+        header = self.generateHeader('pass', FSM.BIDIRECTIONAL)
         rule_id = f'sid:{self.rule_id};'
         self.rule_id += 1
         return f'{header} (flags:F+; {rule_id})'
         
     def allowACK(self):
         #allow client to send FIN to client
-        header = self.generateHeader(True)
+        header = self.generateHeader('pass', FSM.BIDIRECTIONAL)
         rule_id = f'sid:{self.rule_id};'
         self.rule_id += 1
         return f'{header} (flags:A; dsize:0; {rule_id})'
+        
+    def dropAll(self):
+        header = self.generateHeader('drop', FSM.BIDIRECTIONAL)
+        rule_id = f'sid:{self.rule_id};'
+        self.rule_id += 1
+        return f'{header} ({rule_id})'
    
     def generateAllRules(self):
         #generate rules based on FSM
@@ -149,10 +171,11 @@ Initial state: {self.initial}
                     fRules.write(self.generateRule(sid, tid)+'\n')
         #allow client to send SYN to server to enable connection
         fRules.write(self.allowSYN()+'\n')
+        fRules.write(self.allowSYNACK()+'\n')
         fRules.write(self.allowFIN()+'\n')
         fRules.write(self.allowACK()+'\n')
+        fRules.write(self.dropAll()+'\n')
         
-
 def readModel(fModel):
     """This function reads the model file and generate a FSM class out of it.""" 
     states = []
