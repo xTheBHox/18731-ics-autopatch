@@ -1,0 +1,10 @@
+pass tcp 192.168.1.100 any -> 192.168.1.101 502 (msg:"ReadHoldingRegsQuery"; flow:established; dsize:12; content:"|00 00|"; offset:2; depth:2; content:"|03|"; offset:7; depth:1; flowbits:isnotset,any,modbus;flowbits:setx,mb.s1,modbus; sid:1000000;)
+pass tcp 192.168.1.100 any -> 192.168.1.101 502 (msg:"ReadCoils-Query"; flow:established; dsize:12; content:"|00 00|"; offset:2; depth:2; content:"|01|"; offset:7; depth:1; flowbits:isnotset,any,modbus;flowbits:setx,mb.s2,modbus; sid:1000001;)
+pass tcp 192.168.1.100 any -> 192.168.1.101 502 (msg:"ReadDiscreteInputs-Query"; flow:established; dsize:12; content:"|00 00|"; offset:2; depth:2; content:"|02|"; offset:7; depth:1; flowbits:isnotset,any,modbus;flowbits:setx,mb.s3,modbus; sid:1000002;)
+pass tcp 192.168.1.101 502 -> 192.168.1.100 any (msg:"ReadHoldingRegs-Response"; flow:established; content:"|00 00|"; offset:2; depth:2; content:"|03|"; offset:7; depth:1; flowbits:isset,mb.s1;flowbits:unset,all,modbus; sid:1000003;)
+pass tcp 192.168.1.101 502 -> 192.168.1.100 any (msg:"ReadCoils-Response"; flow:established; content:"|00 00|"; offset:2; depth:2; content:"|01|"; offset:7; depth:1; flowbits:isset,mb.s2;flowbits:unset,all,modbus; sid:1000004;)
+pass tcp 192.168.1.101 502 -> 192.168.1.100 any (msg:"ReadDiscreteInputs-Response"; flow:established; content:"|00 00|"; offset:2; depth:2; content:"|02|"; offset:7; depth:1; flowbits:isset,mb.s3;flowbits:unset,all,modbus; sid:1000005;)
+pass tcp 192.168.1.100 any <> 192.168.1.101 502 (flags:S+; dsize:0; sid:1000006;)
+pass tcp 192.168.1.100 any <> 192.168.1.101 502 (flags:F+; dsize:0; sid:1000007;)
+pass tcp 192.168.1.100 any <> 192.168.1.101 502 (flags:A; dsize:0; sid:1000008;)
+drop tcp 192.168.1.100 any <> 192.168.1.101 502
