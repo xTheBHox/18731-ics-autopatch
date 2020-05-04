@@ -29,7 +29,26 @@ class MBPkt():
         self.fn = fn_code
         self.data = data
         MBPkt.transaction_number = (MBPkt.transaction_number + 1) % 0xFFFF
-        
+       
+       
+    def recv(self, sock):
+        while True:
+            msg = sock.recv(6 - len(recv_buf))
+            if len(msg) == 0:
+                print("No reply")
+                break
+            recv_buf.extend(msg)
+            if len(recv_buf) == 6: break
+        l = int.from_bytes(recv_buf[4:6], byteorder='big', signed=False) + 6
+        while True:
+            msg = sock.recv(l - len(recv_buf))
+            if len(msg) == 0:
+                print("No reply")
+                break
+            recv_buf.extend(msg)
+            #print("%d bytes needed," % l, "%d bytes buffered" % len(recv_buf))
+            if len(recv_buf) == l: break
+    
     def send(self, sock=None):
         
         if sock is None:
@@ -51,29 +70,14 @@ class MBPkt():
         # Wait for the reply
         recv_buf = bytearray()
         try:
-            while True:
-                msg = s.recv(6 - len(recv_buf))
-                if len(msg) == 0:
-                    print("No reply")
-                    break
-                recv_buf.extend(msg)
-                if len(recv_buf) == 6: break
-            l = int.from_bytes(recv_buf[4:6], byteorder='big', signed=False) + 6
-            while True:
-                msg = s.recv(l - len(recv_buf))
-                if len(msg) == 0:
-                    print("No reply")
-                    break
-                recv_buf.extend(msg)
-                #print("%d bytes needed," % l, "%d bytes buffered" % len(recv_buf))
-                if len(recv_buf) == l: break
+            self.recv(s)
             if sock is None: 
                 s.shutdown(socket.SHUT_RDWR)
             print("Reply received.")
         except OSError as err:
             print("Failed:", err)
         if sock is None:
-            s.close()  
+            s.close()
             
     @staticmethod
     def ReadCoils(start, count):
