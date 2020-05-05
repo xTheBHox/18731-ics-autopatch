@@ -13,12 +13,14 @@ class create_topo(Topo):
 
         h1 = self.addHost( 'h1' , ip = '192.168.1.100')
         h2 = self.addHost( 'h2' , ip = '192.168.1.101')
+        #h3 = self.addHost( 'h3' , ip = '192.168.1.101')
         s1 = self.addSwitch( 's1' )
         s2 = self.addSwitch( 's2' )
 
         self.addLink( h1,s1 )
         self.addLink( h2,s2 )
         self.addLink( s1,s2 )
+        #self.addLink( s1,h3 )
     
 
 def start_cli():
