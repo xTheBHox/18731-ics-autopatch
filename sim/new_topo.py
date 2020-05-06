@@ -34,7 +34,7 @@ def start_cli():
     s1, s2, s3, h1, h2 = net.get('s1', 's2', 's3', 'h1', 'h2')
     net.pingAll()
     #net.configLinkStatus('s1', 's2', 'down')
-    #s3.stop(deleteIntfs=False)
+    s3.stop(deleteIntfs=False)
     #net.pingAll()
     #h1.cmd('ethtool --offload h1-eth0 rx off tx off')
     #h2.cmd('ethtool --offload h2-eth0 rx off tx off')
