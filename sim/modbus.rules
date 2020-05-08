@@ -4,7 +4,7 @@ pass tcp 192.168.1.100 any -> 192.168.1.101 502 (flow:established; content:"|02|
 pass tcp 192.168.1.101 502 -> 192.168.1.100 any (flow:established; content:"|03|"; offset:7; depth:1; flowbits:isset,s1;flowbits:unset,all,modbus; sid:1000003;)
 pass tcp 192.168.1.101 502 -> 192.168.1.100 any (flow:established; content:"|01|"; offset:7; depth:1; flowbits:isset,s2;flowbits:unset,all,modbus; sid:1000004;)
 pass tcp 192.168.1.101 502 -> 192.168.1.100 any (flow:established; content:"|02|"; offset:7; depth:1; flowbits:isset,s3;flowbits:unset,all,modbus; sid:1000005;)
-pass tcp 192.168.1.100 any -> 192.168.1.101 502 (flags:S; sid:1000006;)
+alert tcp 192.168.1.100 any -> 192.168.1.101 502 (flags:S; sid:1000006;)
 pass tcp 192.168.1.101 502 -> 192.168.1.100 any (flags:SA; sid:1000007;)
 pass tcp 192.168.1.100 any <> 192.168.1.101 502 (flags:F+; sid:1000008;)
 pass tcp 192.168.1.100 any <> 192.168.1.101 502 (flags:A; dsize:0; sid:1000009;)
