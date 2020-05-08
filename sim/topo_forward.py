@@ -1,4 +1,5 @@
 #!/usr/bin/python
+import sys
 from mininet.topo import Topo
 from mininet.net import Mininet
 from mininet.log import setLogLevel, info
@@ -9,17 +10,18 @@ from mininet.util import dumpNodeConnections
 
 class create_topo(Topo):
 
-    def build(self, n=2):
+    def build(self):
 
-        h1 = self.addHost( 'h1' , ip = '192.168.1.100')
-        h2 = self.addHost( 'h2' , ip = '192.168.1.101')
-        i1 = self.addHost( 'i1' , ip = '0.0.0.0')
+        h1 = self.addHost( 'h1' , ip = '192.168.1.192')
         s1 = self.addSwitch( 's1' )
 
         self.addLink( h1,s1 )
-        self.addLink( h2,s1 )
-        self.addLink( i1,s1 )
-        self.addLink( i1,s1 )
+        
+        for i in range(n):
+            device = self.addHost( 'd%d' % i , ip = '192.168.1.10%d'%i)
+            device_switch = self.addSwitch( 'ds%d' % i )#, inNamespace=True )
+            self.addLink( device, device_switch )
+            self.addLink( device_switch, s1 )
     
 
 def start_cli():
@@ -27,18 +29,24 @@ def start_cli():
     net = Mininet(topo=topo)
     net.start()
     dumpNodeConnections(net.hosts)
-    s1, h1, h2, i1 = net.get('s1', 'h1', 'h2', 'i1')
-    net.pingAll()
+    s1, h1 = net.get('s1', 'h1')
     h1.cmd('ethtool --offload h1-eth0 rx off tx off')
-    h2.cmd('ethtool --offload h2-eth0 rx off tx off')
-    h2.cmd('python3 modbus_server.py &')
     h1.cmd('tcpdump -i h1-eth0 -w h1_f.pcap &')
-    h2.cmd('tcpdump -i h2-eth0 -w h2_f.pcap &')
-    i1.cmd('tcpdump -i i1-eth0 -w snort_in.pcap &')
-    i1.cmd('tcpdump -i i1-eth1 -w snort_out.pcap &')
+    
+    #per device
+    for i in range(n):
+        dev, sw = net.get('d%d'%i, 'ds%d'%i)
+        dev.cmd('ethtool --offload d%d-eth0 rx off tx off'%i)
+        dev.cmd('tcpdump -i d%d-eth0 -w d%d.pcap &'%(i,i))
+        dev.cmd('python3 modbus_server.py &')
+        #sw.cmd('snort -c snort.conf -i ds%d-eth1:ds%d-eth2 -Q -l log -A console &'%(i,i))
+        #sw.cmd('ovs-ofctl add-flow ds%d priority=65535,actions=drop'%i)
+        
     CLI(net)
     net.stop()
 
 if __name__ == '__main__':
     setLogLevel( 'info' )
+    if len(sys.argv) == 1: n=1
+    if len(sys.argv) == 2: n=int(sys.argv[1])
     start_cli()
