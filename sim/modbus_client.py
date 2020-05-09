@@ -1,10 +1,10 @@
 import socket
 import random
 import sys
-
+import time
 SERVER_IP = sys.argv[1]
 SERVER_PORT = 502
-
+#start = time.time()
 class MB():
     
     UNIT_ID = 1
@@ -31,7 +31,7 @@ class MBPkt():
         MBPkt.transaction_number = (MBPkt.transaction_number + 1) % 0xFFFF
        
        
-    def recv(self, sock):
+    def recv(self, sock, recv_buf):
         while True:
             msg = sock.recv(6 - len(recv_buf))
             if len(msg) == 0:
@@ -70,9 +70,11 @@ class MBPkt():
         # Wait for the reply
         recv_buf = bytearray()
         try:
-            self.recv(s)
+            self.recv(s, recv_buf)
             if sock is None: 
                 s.shutdown(socket.SHUT_RDWR)
+            #time = time.time() - start
+            #print("time:" + str(time * 1000) + "ms")
             print("Reply received.")
         except OSError as err:
             print("Failed:", err)
@@ -161,19 +163,19 @@ for i in range(1, 4):
     print("Sending Read Coils...")
     P = MBPkt.ReadCoils(0, 4).send()
     print("Sending Read Discrete Inputs...")
-    P = MBPkt.ReadDiscreteInputs(4, 4).send()
+    P = MBPkt.ReadDiscreteInputs(0, i).send()
     print("Sending Read Multiple Holding Registers...")
     P = MBPkt.ReadHoldingMultiple(8, 4).send()
-    # print("Sending Read Input Registers...")
-    # P = MBPkt.ReadInputs(0, i).send()
-    print("Sending Write Single Coil...")
-    P = MBPkt.WriteCoilSingle(i, True).send()
-    # print("Sending Write Multiple Coils...")
-    # P = MBPkt.WriteCoilMultiple(i, [j%2==0 for j in range(i)]).send()
-    # print("Sending Write Single Holding Register...")
-    # P = MBPkt.WriteHoldingSingle(i, i).send()
-    # print("Sending Write Multiple Holding Registers...")
-    # P = MBPkt.WriteHoldingMultiple(i, list(range(i))).send()
+    #print("Sending Read Input Registers...")
+    #P = MBPkt.ReadInputs(0, i).send()
+    #print("Sending Write Single Coil...")
+    #P = MBPkt.WriteCoilSingle(i, True).send()
+    #print("Sending Write Multiple Coils...")
+    #P = MBPkt.WriteCoilMultiple(i, [j%2==0 for j in range(i)]).send()
+    #print("Sending Write Single Holding Register...")
+    #P = MBPkt.WriteHoldingSingle(i, i).send()
+    #print("Sending Write Multiple Holding Registers...")
+    #P = MBPkt.WriteHoldingMultiple(i, list(range(i))).send()
     
     
 #s.shutdown(socket.SHUT_RDWR)
